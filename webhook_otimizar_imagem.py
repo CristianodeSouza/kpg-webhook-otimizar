@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 WEBHOOK PYTHON - OTIMIZAR IMAGEM ANTES DE PUBLICAR NO GOOGLE MEU NEGOCIO
-Recebe URL do SIGA, otimiza metadados, salva no Google Drive, retorna URL nova
+Recebe URL do SIGA, otimiza metadados, faz upload para Google Cloud Storage, retorna URL pública
 """
 
 from flask import Flask, request, jsonify
@@ -10,12 +10,9 @@ import os
 import sys
 import json
 from datetime import datetime
-from pathlib import Path
 import tempfile
 from google.oauth2 import service_account
 from google.cloud import storage
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -35,8 +32,8 @@ def otimizar_imagem():
     Recebe requisicao HTTP com URL de imagem SIGA
     1. Baixa imagem
     2. Executa edit_metadata.py
-    3. Faz upload para Google Drive
-    4. Retorna URL nova otimizada
+    3. Faz upload para Google Cloud Storage
+    4. Retorna URL HTTPS pública
     """
 
     try:
@@ -112,8 +109,7 @@ def otimizar_imagem():
 
         print(f"    [OK] Metadados adicionados\n")
 
-        # 5. Fazer upload para Google Drive (simulado - retorna caminho local)
-        # TODO: Integrar com Google Drive API
+        # 5. Fazer upload para Google Cloud Storage
         url_nova = gerar_url_imagem_otimizada(caminho_temp, id_imovel)
 
         # 6. Limpar temporario (mas manter backup)
@@ -222,8 +218,16 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
         blob.upload_from_filename(caminho_local, content_type='image/png')
         print(f"    [DEBUG] Arquivo enviado com sucesso")
 
-        # Gerar URL pública (não precisa chamar make_public())
-        url_publica = f"https://storage.googleapis.com/{bucket_name}/{nome_arquivo}"
+        # Tornar público (fazer_public() requer storage.objects.get, já concedido no IAM)
+        try:
+            blob.make_public()
+            print(f"    [DEBUG] Arquivo tornando público")
+        except Exception as e:
+            print(f"    [AVISO] make_public() falhou: {e}")
+            print(f"    [INFO] Usando URL pública direta mesmo assim")
+
+        # Retornar URL pública
+        url_publica = blob.public_url
         print(f"    [OK] Upload bem-sucedido: {url_publica}\n")
         return url_publica
 
