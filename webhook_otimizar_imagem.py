@@ -222,16 +222,23 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
         blob.upload_from_filename(caminho_local, content_type='image/png')
         print(f"    [DEBUG] Arquivo enviado com sucesso")
 
-        # Tornar público (fazer_public() requer storage.objects.get, já concedido no IAM)
+        # Tornar público com ACL explícito
         try:
             blob.make_public()
-            print(f"    [DEBUG] Arquivo tornando público")
+            print(f"    [DEBUG] make_public() executado")
         except Exception as e:
-            print(f"    [AVISO] make_public() falhou: {e}")
-            print(f"    [INFO] Usando URL pública direta mesmo assim")
+            print(f"    [ERRO] make_public() falhou: {e}")
+
+        # Verificar se está público
+        try:
+            acls = blob.acl.get_entities()
+            print(f"    [DEBUG] ACLs atuais: {acls}")
+        except Exception as e:
+            print(f"    [DEBUG] Não conseguiu ler ACL: {e}")
 
         # Retornar URL pública
         url_publica = blob.public_url
+        print(f"    [DEBUG] URL gerada: {url_publica}")
         print(f"    [OK] Upload bem-sucedido: {url_publica}\n")
         return url_publica
 
