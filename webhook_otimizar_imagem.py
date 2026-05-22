@@ -218,27 +218,17 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
         nome_arquivo = f"imovel_{id_imovel}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
         blob = bucket.blob(nome_arquivo)
 
-        print(f"    [UPLOAD] Enviando arquivo '{nome_arquivo}' para Cloud Storage...")
-        blob.upload_from_filename(caminho_local, content_type='image/png')
-        print(f"    [DEBUG] Arquivo enviado com sucesso")
-
-        # Tornar público com ACL explícito
-        try:
-            blob.make_public()
-            print(f"    [DEBUG] make_public() executado")
-        except Exception as e:
-            print(f"    [ERRO] make_public() falhou: {e}")
-
-        # Verificar se está público
-        try:
-            acls = blob.acl.get_entities()
-            print(f"    [DEBUG] ACLs atuais: {acls}")
-        except Exception as e:
-            print(f"    [DEBUG] Não conseguiu ler ACL: {e}")
+        print(f"    [UPLOAD] Enviando arquivo '{nome_arquivo}' com ACL público...")
+        blob.upload_from_filename(
+            caminho_local,
+            content_type='image/png',
+            predefined_acl='publicRead'
+        )
+        print(f"    [DEBUG] Upload concluído com ACL publicRead")
 
         # Retornar URL pública
         url_publica = blob.public_url
-        print(f"    [DEBUG] URL gerada: {url_publica}")
+        print(f"    [OK] URL pública: {url_publica}\n")
         print(f"    [OK] Upload bem-sucedido: {url_publica}\n")
         return url_publica
 
