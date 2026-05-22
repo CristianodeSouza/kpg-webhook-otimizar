@@ -156,37 +156,28 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
         # Tentar variável de ambiente com Base64 primeiro (mais confiável)
         import base64
         google_creds_b64 = os.environ.get('GOOGLE_CREDENTIALS_B64')
+        google_creds_json = None
 
         if google_creds_b64:
-            print(f"    [DEBUG] Lendo de GOOGLE_CREDENTIALS_B64 (base64)")
+            print(f"    [DEBUG] Lendo de GOOGLE_CREDENTIALS_B64 (base64) - RECOMENDADO")
             try:
                 google_creds_json = base64.b64decode(google_creds_b64).decode('utf-8')
                 print(f"    [DEBUG] Base64 decodificado com sucesso, tamanho: {len(google_creds_json)} caracteres")
             except Exception as e:
-                print(f"    [AVISO] Falha ao decodificar GOOGLE_CREDENTIALS_B64: {e}")
-                google_creds_b64 = None
+                print(f"    [ERRO] Falha ao decodificar GOOGLE_CREDENTIALS_B64: {e}")
+                google_creds_json = None
 
-        if not google_creds_b64:
-            # Fallback: tentar Secret File
-            creds_file = '/etc/secrets/credentials.json'
-            if os.path.exists(creds_file):
-                print(f"    [DEBUG] Lendo credenciais de {creds_file}")
-                with open(creds_file, 'r', encoding='utf-8') as f:
-                    google_creds_json = f.read()
-                # Remover caracteres de controle (exceto newlines)
-                google_creds_json = ''.join(
-                    char if (ord(char) >= 32 and ord(char) != 127) or char in '\n\r\t' else ''
-                    for char in google_creds_json
-                )
-                print(f"    [DEBUG] Arquivo lido com sucesso, tamanho: {len(google_creds_json)} caracteres")
-            else:
-                # Última tentativa: variável de ambiente simples
-                print(f"    [DEBUG] Arquivo não encontrado, tentando GOOGLE_CREDENTIALS")
-                google_creds_json = os.environ.get('GOOGLE_CREDENTIALS')
-                if not google_creds_json:
-                    print(f"    [ERRO] Nenhuma credencial configurada!")
-                    return f"file:///{caminho_local.replace(chr(92), '/')}"
+        # Se GOOGLE_CREDENTIALS_B64 falhou, tenta GOOGLE_CREDENTIALS simples
+        if not google_creds_json:
+            print(f"    [DEBUG] Tentando GOOGLE_CREDENTIALS")
+            google_creds_json = os.environ.get('GOOGLE_CREDENTIALS')
+            if google_creds_json:
                 google_creds_json = google_creds_json.replace('\\n', '\n')
+                print(f"    [DEBUG] GOOGLE_CREDENTIALS obtida, tamanho: {len(google_creds_json)} caracteres")
+            else:
+                print(f"    [ERRO] Nenhuma credencial configurada!")
+                print(f"    [ERRO] Configure GOOGLE_CREDENTIALS_B64 ou GOOGLE_CREDENTIALS no Render")
+                return f"file:///{caminho_local.replace(chr(92), '/')}"
 
         try:
             # Tentar remover BOM UTF-8 se presente
