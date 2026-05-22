@@ -12,3 +12,6 @@ services:
         value: 0.0.0.0
       - key: FLASK_PORT
         value: 5000
+    secretFiles:
+      - name: credentials.json
+        path: /etc/secrets/credentials.json
