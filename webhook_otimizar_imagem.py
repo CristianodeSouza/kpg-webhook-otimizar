@@ -11,13 +11,14 @@ import sys
 import json
 from datetime import datetime
 from pathlib import Path
+import tempfile
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 app = Flask(__name__)
 
 # Configuracao
-PASTA_TEMP = os.path.expanduser("~\\AppData\\Local\\Temp\\KPG_WEBHOOK")
+PASTA_TEMP = os.environ.get('TEMP_DIR', tempfile.gettempdir())
 PASTA_PROJETO = os.path.dirname(os.path.abspath(__file__))
 SCRIPT_EDIT = os.path.join(PASTA_PROJETO, "edit_metadata.py")
 
@@ -101,7 +102,7 @@ def otimizar_imagem():
         print("="*80)
         print(f"\nResultado:")
         print(f"  Arquivo otimizado: {caminho_temp}")
-        print(f"  URL para Google Meu Negocio: {url_nova}")
+        print(f"  URL para Google Meu Negócio: {url_nova}")
         print(f"  Metadados: 65 campos adicionados\n")
 
         # 7. Retornar resposta ao Make
@@ -111,7 +112,6 @@ def otimizar_imagem():
             "nome_imovel": nome_imovel,
             "url_original": url_imagem,
             "url_otimizada": url_nova,
-            "caminho_local": caminho_temp,
             "metadados_adicionados": 65,
             "timestamp": datetime.now().isoformat()
         }), 200
@@ -126,19 +126,34 @@ def otimizar_imagem():
 
 def gerar_url_imagem_otimizada(caminho_local, id_imovel):
     """
-    Gera URL para a imagem otimizada
-
-    OPCAO 1 (SIMPLES - Arquivo local):
-        Retorna caminho local - voce pode servir via HTTP depois
-
-    OPCAO 2 (GOOGLE DRIVE):
-        Faria upload e retornaria URL compartilhavel
-        (implementar depois se precisar)
+    Faz upload da imagem otimizada para imgbb.com
+    Retorna URL permanente para usar no Google Meu Negócio
     """
 
-    # Por enquanto, retorna caminho local
-    # Proximos passos: integrar com Google Drive
-    return f"file:///{caminho_local.replace(chr(92), '/')}"
+    IMGBB_API_KEY = os.environ.get('IMGBB_API_KEY', 'b8ef80fb7c8c2c31a65b0597ed9ed38c')
+
+    try:
+        with open(caminho_local, 'rb') as f:
+            files = {'image': f}
+            data = {'key': IMGBB_API_KEY}
+
+            print(f"[UPLOAD] Enviando para imgbb.com...")
+            response = requests.post('https://api.imgbb.com/1/upload', files=files, data=data, timeout=30)
+            response.raise_for_status()
+
+            resultado = response.json()
+            if resultado.get('success'):
+                url_imagem = resultado['data']['url']
+                print(f"    [OK] Upload bem-sucedido: {url_imagem}\n")
+                return url_imagem
+            else:
+                print(f"    [ERRO] imgbb retornou: {resultado.get('error', 'erro desconhecido')}\n")
+                return f"file:///{caminho_local.replace(chr(92), '/')}"
+
+    except Exception as e:
+        print(f"    [AVISO] Erro ao fazer upload para imgbb: {e}")
+        print(f"    [FALLBACK] Retornando caminho local\n")
+        return f"file:///{caminho_local.replace(chr(92), '/')}"
 
 
 @app.route('/status', methods=['GET'])
@@ -168,10 +183,15 @@ if __name__ == "__main__":
     print("WEBHOOK KPG IMAGEM METADADOS")
     print("="*80)
     print("\n[+] Iniciando servidor Flask...")
-    print("[+] Escutando em: http://localhost:5000")
-    print("[+] Endpoint: POST http://localhost:5000/otimizar_imagem")
+
+    host = os.environ.get('FLASK_HOST', 'localhost')
+    port = int(os.environ.get('FLASK_PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+
+    print(f"[+] Escutando em: http://{host}:{port}")
+    print(f"[+] Endpoint: POST http://{host}:{port}/otimizar_imagem")
+    print(f"[+] Debug mode: {debug}")
     print("\n[!] Para parar: pressione CTRL+C")
     print("="*80 + "\n")
 
-    # Rodar em modo debug (mostra erros detalhados)
-    app.run(host='localhost', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=debug)
