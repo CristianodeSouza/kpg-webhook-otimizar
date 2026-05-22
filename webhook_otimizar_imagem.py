@@ -231,9 +231,8 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
         blob.upload_from_filename(caminho_local, content_type='image/png')
         print(f"    [DEBUG] Arquivo enviado com sucesso")
 
-        # Tornar público
-        blob.make_public()
-        url_publica = blob.public_url
+        # Gerar URL pública (não precisa chamar make_public())
+        url_publica = f"https://storage.googleapis.com/{bucket_name}/{nome_arquivo}"
         print(f"    [OK] Upload bem-sucedido: {url_publica}\n")
         return url_publica
 
