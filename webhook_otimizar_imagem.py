@@ -40,7 +40,19 @@ def otimizar_imagem():
 
     try:
         # 1. Receber dados da requisicao
-        dados = request.get_json()
+        if not request.is_json:
+            return jsonify({
+                "status": "erro",
+                "mensagem": "Content-Type deve ser application/json"
+            }), 400
+
+        dados = request.get_json(force=True, silent=True)
+        if not dados:
+            return jsonify({
+                "status": "erro",
+                "mensagem": "JSON inválido no body"
+            }), 400
+
         url_imagem = dados.get('url_imagem')
         id_imovel = dados.get('id_imovel', 'desconhecido')
         nome_imovel = dados.get('nome_imovel', 'imovel')
