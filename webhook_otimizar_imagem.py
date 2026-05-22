@@ -173,7 +173,11 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
                 print(f"    [DEBUG] Lendo credenciais de {creds_file}")
                 with open(creds_file, 'r', encoding='utf-8') as f:
                     google_creds_json = f.read()
-                google_creds_json = ''.join(char if ord(char) >= 32 or char in '\n\r\t' else '' for char in google_creds_json)
+                # Remover caracteres de controle (exceto newlines)
+                google_creds_json = ''.join(
+                    char if (ord(char) >= 32 and ord(char) != 127) or char in '\n\r\t' else ''
+                    for char in google_creds_json
+                )
                 print(f"    [DEBUG] Arquivo lido com sucesso, tamanho: {len(google_creds_json)} caracteres")
             else:
                 # Última tentativa: variável de ambiente simples
@@ -185,6 +189,10 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
                 google_creds_json = google_creds_json.replace('\\n', '\n')
 
         try:
+            # Tentar remover BOM UTF-8 se presente
+            if google_creds_json.startswith('﻿'):
+                google_creds_json = google_creds_json[1:]
+
             creds_dict = json.loads(google_creds_json)
             print(f"    [DEBUG] JSON parseado com sucesso. Project: {creds_dict.get('project_id')}")
 
