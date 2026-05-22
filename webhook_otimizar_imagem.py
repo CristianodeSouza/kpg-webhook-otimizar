@@ -152,18 +152,23 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
     """
 
     try:
+        import base64
+
         # Ler credenciais do ambiente
-        google_creds_json = os.environ.get('GOOGLE_CREDENTIALS')
-        if not google_creds_json:
+        google_creds_b64 = os.environ.get('GOOGLE_CREDENTIALS')
+        if not google_creds_b64:
             print(f"    [ERRO] GOOGLE_CREDENTIALS não está configurada no ambiente!")
-            print(f"    [DEBUG] Variáveis de ambiente disponíveis: {list(os.environ.keys())[:5]}...\n")
             return f"file:///{caminho_local.replace(chr(92), '/')}"
 
-        print(f"    [DEBUG] GOOGLE_CREDENTIALS encontrada, tamanho: {len(google_creds_json)} caracteres")
+        print(f"    [DEBUG] GOOGLE_CREDENTIALS encontrada (base64), tamanho: {len(google_creds_b64)} caracteres")
 
-        # Corrigir newlines literais
-        google_creds_json = google_creds_json.replace('\\n', '\n')
-        print(f"    [DEBUG] Newlines corrigidos, tamanho agora: {len(google_creds_json)} caracteres")
+        try:
+            # Decodificar de base64
+            google_creds_json = base64.b64decode(google_creds_b64).decode('utf-8')
+            print(f"    [DEBUG] Base64 decodificado com sucesso, tamanho: {len(google_creds_json)} caracteres")
+        except Exception as e:
+            print(f"    [AVISO] Falha ao decodificar base64, tentando JSON direto: {e}")
+            google_creds_json = google_creds_b64.replace('\\n', '\n')
 
         try:
             creds_dict = json.loads(google_creds_json)
