@@ -155,27 +155,49 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
         # Ler credenciais do ambiente
         google_creds_json = os.environ.get('GOOGLE_CREDENTIALS')
         if not google_creds_json:
-            print(f"    [AVISO] GOOGLE_CREDENTIALS não configurada\n")
+            print(f"    [ERRO] GOOGLE_CREDENTIALS não está configurada no ambiente!")
+            print(f"    [DEBUG] Variáveis de ambiente disponíveis: {list(os.environ.keys())[:5]}...\n")
             return f"file:///{caminho_local.replace(chr(92), '/')}"
 
-        creds_dict = json.loads(google_creds_json)
-        credentials = service_account.Credentials.from_service_account_info(
-            creds_dict,
-            scopes=['https://www.googleapis.com/auth/drive']
-        )
+        print(f"    [DEBUG] GOOGLE_CREDENTIALS encontrada, tamanho: {len(google_creds_json)} caracteres")
+
+        # Corrigir newlines literais
+        google_creds_json = google_creds_json.replace('\\n', '\n')
+        print(f"    [DEBUG] Newlines corrigidos, tamanho agora: {len(google_creds_json)} caracteres")
+
+        try:
+            creds_dict = json.loads(google_creds_json)
+            print(f"    [DEBUG] JSON parseado com sucesso. Project: {creds_dict.get('project_id')}")
+        except json.JSONDecodeError as e:
+            print(f"    [ERRO] Falha ao parsear JSON: {e}")
+            print(f"    [DEBUG] Primeiros 100 chars: {google_creds_json[:100]}")
+            return f"file:///{caminho_local.replace(chr(92), '/')}"
+
+        try:
+            credentials = service_account.Credentials.from_service_account_info(
+                creds_dict,
+                scopes=['https://www.googleapis.com/auth/drive']
+            )
+            print(f"    [DEBUG] Credenciais do Google criadas com sucesso")
+        except Exception as e:
+            print(f"    [ERRO] Falha ao criar credenciais: {e}")
+            return f"file:///{caminho_local.replace(chr(92), '/')}"
 
         drive_service = build('drive', 'v3', credentials=credentials)
+        print(f"    [DEBUG] Serviço do Google Drive construído")
 
         # Preparar upload
         nome_arquivo = f"imovel_{id_imovel}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
         file_metadata = {'name': nome_arquivo}
         media = MediaFileUpload(caminho_local, mimetype='image/png')
 
-        print(f"[UPLOAD] Enviando para Google Drive...")
+        print(f"    [UPLOAD] Enviando arquivo '{nome_arquivo}' para Google Drive...")
         file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
         file_id = file.get('id')
+        print(f"    [DEBUG] Arquivo criado no Drive, ID: {file_id}")
 
         # Compartilhar arquivo (tornar público)
+        print(f"    [DEBUG] Compartilhando arquivo...")
         drive_service.permissions().create(
             fileId=file_id,
             body={'type': 'anyone', 'role': 'reader'}
@@ -186,7 +208,9 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
         return url_compartilhada
 
     except Exception as e:
-        print(f"    [ERRO] Google Drive upload falhou: {e}")
+        print(f"    [ERRO] Google Drive upload falhou (exceção não capturada): {type(e).__name__}: {e}")
+        import traceback
+        print(f"    [DEBUG] Traceback:\n{traceback.format_exc()}")
         print(f"    [FALLBACK] Retornando caminho local\n")
         return f"file:///{caminho_local.replace(chr(92), '/')}"
 
