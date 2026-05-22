@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 import tempfile
 from google.oauth2 import service_account
+from google.cloud import storage
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
@@ -147,8 +148,8 @@ def otimizar_imagem():
 
 def gerar_url_imagem_otimizada(caminho_local, id_imovel):
     """
-    Faz upload da imagem otimizada para Google Drive
-    Retorna URL permanente compartilhada para usar no Google Meu Negócio
+    Faz upload da imagem otimizada para Google Cloud Storage
+    Retorna URL pública para usar no Google Meu Negócio
     """
 
     try:
@@ -201,39 +202,35 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
         try:
             credentials = service_account.Credentials.from_service_account_info(
                 creds_dict,
-                scopes=['https://www.googleapis.com/auth/drive']
+                scopes=['https://www.googleapis.com/auth/cloud-platform']
             )
             print(f"    [DEBUG] Credenciais do Google criadas com sucesso")
         except Exception as e:
             print(f"    [ERRO] Falha ao criar credenciais: {e}")
             return f"file:///{caminho_local.replace(chr(92), '/')}"
 
-        drive_service = build('drive', 'v3', credentials=credentials)
-        print(f"    [DEBUG] Serviço do Google Drive construído")
+        # Conectar ao Cloud Storage
+        storage_client = storage.Client(credentials=credentials, project=creds_dict.get('project_id'))
+        bucket_name = 'kpg-imagens-otimizadas'
+        bucket = storage_client.bucket(bucket_name)
+        print(f"    [DEBUG] Conectado ao bucket '{bucket_name}'")
 
         # Preparar upload
         nome_arquivo = f"imovel_{id_imovel}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-        file_metadata = {'name': nome_arquivo}
-        media = MediaFileUpload(caminho_local, mimetype='image/png')
+        blob = bucket.blob(nome_arquivo)
 
-        print(f"    [UPLOAD] Enviando arquivo '{nome_arquivo}' para Google Drive...")
-        file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-        file_id = file.get('id')
-        print(f"    [DEBUG] Arquivo criado no Drive, ID: {file_id}")
+        print(f"    [UPLOAD] Enviando arquivo '{nome_arquivo}' para Cloud Storage...")
+        blob.upload_from_filename(caminho_local, content_type='image/png')
+        print(f"    [DEBUG] Arquivo enviado com sucesso")
 
-        # Compartilhar arquivo (tornar público)
-        print(f"    [DEBUG] Compartilhando arquivo...")
-        drive_service.permissions().create(
-            fileId=file_id,
-            body={'type': 'anyone', 'role': 'reader'}
-        ).execute()
-
-        url_compartilhada = f"https://drive.google.com/uc?id={file_id}&export=view"
-        print(f"    [OK] Upload bem-sucedido: {url_compartilhada}\n")
-        return url_compartilhada
+        # Tornar público
+        blob.make_public()
+        url_publica = blob.public_url
+        print(f"    [OK] Upload bem-sucedido: {url_publica}\n")
+        return url_publica
 
     except Exception as e:
-        print(f"    [ERRO] Google Drive upload falhou (exceção não capturada): {type(e).__name__}: {e}")
+        print(f"    [ERRO] Cloud Storage upload falhou: {type(e).__name__}: {e}")
         import traceback
         print(f"    [DEBUG] Traceback:\n{traceback.format_exc()}")
         print(f"    [FALLBACK] Retornando caminho local\n")
