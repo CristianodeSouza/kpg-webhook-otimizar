@@ -158,7 +158,7 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
             print(f"    [DEBUG] Lendo credenciais de {creds_file}")
             with open(creds_file, 'r', encoding='utf-8') as f:
                 google_creds_json = f.read()
-            google_creds_json = google_creds_json.encode('utf-8', 'ignore').decode('utf-8')
+            google_creds_json = ''.join(char if ord(char) >= 32 or char in '\n\r\t' else '' for char in google_creds_json)
             print(f"    [DEBUG] Arquivo lido com sucesso, tamanho: {len(google_creds_json)} caracteres")
         else:
             # Fallback: tentar variável de ambiente
