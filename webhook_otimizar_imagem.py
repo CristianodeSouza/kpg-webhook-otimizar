@@ -173,6 +173,13 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
         try:
             creds_dict = json.loads(google_creds_json)
             print(f"    [DEBUG] JSON parseado com sucesso. Project: {creds_dict.get('project_id')}")
+
+            # Corrigir private_key se tiver quebras de linha literais (\\n)
+            if 'private_key' in creds_dict:
+                private_key = creds_dict['private_key']
+                if '\\n' in private_key:
+                    print(f"    [DEBUG] Corrigindo quebras de linha na private_key")
+                    creds_dict['private_key'] = private_key.replace('\\n', '\n')
         except json.JSONDecodeError as e:
             print(f"    [ERRO] Falha ao parsear JSON: {e}")
             print(f"    [DEBUG] Primeiros 100 chars: {google_creds_json[:100]}")
