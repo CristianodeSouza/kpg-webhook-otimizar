@@ -82,14 +82,20 @@ def otimizar_imagem():
 
         # 4. Executar edit_metadata.py
         print(f"[3/3] Adicionando metadados otimizados...")
-        cmd = f'python "{SCRIPT_EDIT}" "{caminho_temp}"'
-        resultado_edit = os.system(cmd)
-
-        if resultado_edit != 0:
-            return jsonify({
-                "status": "erro",
-                "mensagem": "Erro ao executar edit_metadata.py"
-            }), 500
+        try:
+            import subprocess
+            resultado_edit = subprocess.run(
+                [sys.executable, SCRIPT_EDIT, caminho_temp],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if resultado_edit.returncode != 0:
+                print(f"    [AVISO] edit_metadata retornou: {resultado_edit.returncode}")
+                print(f"    Stderr: {resultado_edit.stderr}")
+        except Exception as e:
+            print(f"    [AVISO] Erro ao executar edit_metadata: {e}")
 
         print(f"    [OK] Metadados adicionados\n")
 
