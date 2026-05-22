@@ -223,9 +223,42 @@ def status():
         "versao": "1.0",
         "endpoints": {
             "otimizar": "POST /otimizar_imagem",
-            "status": "GET /status"
+            "status": "GET /status",
+            "debug": "GET /debug"
         }
     }), 200
+
+
+@app.route('/debug', methods=['GET'])
+def debug():
+    """Debug endpoint - verifica configuração de credenciais"""
+    google_creds = os.environ.get('GOOGLE_CREDENTIALS')
+
+    debug_info = {
+        "google_credentials_configurada": google_creds is not None,
+        "tamanho_bytes": len(google_creds) if google_creds else 0,
+        "primeiros_50_chars": google_creds[:50] if google_creds else "NÃO CONFIGURADA",
+        "ambiente_vars_sample": {
+            "FLASK_ENV": os.environ.get('FLASK_ENV'),
+            "FLASK_HOST": os.environ.get('FLASK_HOST'),
+            "FLASK_PORT": os.environ.get('FLASK_PORT'),
+            "TEMP_DIR": os.environ.get('TEMP_DIR'),
+        }
+    }
+
+    # Tentar parsear JSON se existir
+    if google_creds:
+        try:
+            creds_test = google_creds.replace('\\n', '\n')
+            creds_dict = json.loads(creds_test)
+            debug_info["json_valido"] = True
+            debug_info["project_id"] = creds_dict.get('project_id')
+            debug_info["client_email"] = creds_dict.get('client_email')
+        except Exception as e:
+            debug_info["json_valido"] = False
+            debug_info["erro_parse"] = str(e)
+
+    return jsonify(debug_info), 200
 
 
 @app.route('/test', methods=['POST'])
