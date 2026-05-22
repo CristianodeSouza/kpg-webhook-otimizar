@@ -12,6 +12,9 @@ import json
 from datetime import datetime
 from pathlib import Path
 import tempfile
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -126,32 +129,46 @@ def otimizar_imagem():
 
 def gerar_url_imagem_otimizada(caminho_local, id_imovel):
     """
-    Faz upload da imagem otimizada para imgbb.com
-    Retorna URL permanente para usar no Google Meu Negócio
+    Faz upload da imagem otimizada para Google Drive
+    Retorna URL permanente compartilhada para usar no Google Meu Negócio
     """
 
-    IMGBB_API_KEY = os.environ.get('IMGBB_API_KEY', 'b8ef80fb7c8c2c31a65b0597ed9ed38c')
-
     try:
-        with open(caminho_local, 'rb') as f:
-            files = {'image': f}
-            data = {'key': IMGBB_API_KEY}
+        # Ler credenciais do ambiente
+        google_creds_json = os.environ.get('GOOGLE_CREDENTIALS')
+        if not google_creds_json:
+            print(f"    [AVISO] GOOGLE_CREDENTIALS não configurada\n")
+            return f"file:///{caminho_local.replace(chr(92), '/')}"
 
-            print(f"[UPLOAD] Enviando para imgbb.com...")
-            response = requests.post('https://api.imgbb.com/1/upload', files=files, data=data, timeout=30)
-            response.raise_for_status()
+        creds_dict = json.loads(google_creds_json)
+        credentials = service_account.Credentials.from_service_account_info(
+            creds_dict,
+            scopes=['https://www.googleapis.com/auth/drive']
+        )
 
-            resultado = response.json()
-            if resultado.get('success'):
-                url_imagem = resultado['data']['url']
-                print(f"    [OK] Upload bem-sucedido: {url_imagem}\n")
-                return url_imagem
-            else:
-                print(f"    [ERRO] imgbb retornou: {resultado.get('error', 'erro desconhecido')}\n")
-                return f"file:///{caminho_local.replace(chr(92), '/')}"
+        drive_service = build('drive', 'v3', credentials=credentials)
+
+        # Preparar upload
+        nome_arquivo = f"imovel_{id_imovel}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        file_metadata = {'name': nome_arquivo}
+        media = MediaFileUpload(caminho_local, mimetype='image/png')
+
+        print(f"[UPLOAD] Enviando para Google Drive...")
+        file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        file_id = file.get('id')
+
+        # Compartilhar arquivo (tornar público)
+        drive_service.permissions().create(
+            fileId=file_id,
+            body={'type': 'anyone', 'role': 'reader'}
+        ).execute()
+
+        url_compartilhada = f"https://drive.google.com/uc?id={file_id}&export=view"
+        print(f"    [OK] Upload bem-sucedido: {url_compartilhada}\n")
+        return url_compartilhada
 
     except Exception as e:
-        print(f"    [AVISO] Erro ao fazer upload para imgbb: {e}")
+        print(f"    [ERRO] Google Drive upload falhou: {e}")
         print(f"    [FALLBACK] Retornando caminho local\n")
         return f"file:///{caminho_local.replace(chr(92), '/')}"
 
