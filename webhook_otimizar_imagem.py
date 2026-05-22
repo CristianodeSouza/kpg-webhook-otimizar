@@ -256,12 +256,17 @@ def status():
 @app.route('/debug', methods=['GET'])
 def debug():
     """Debug endpoint - verifica configuração de credenciais"""
+    import base64
+
+    google_creds_b64 = os.environ.get('GOOGLE_CREDENTIALS_B64')
     google_creds = os.environ.get('GOOGLE_CREDENTIALS')
+    google_creds_json = None
 
     debug_info = {
-        "google_credentials_configurada": google_creds is not None,
-        "tamanho_bytes": len(google_creds) if google_creds else 0,
-        "primeiros_50_chars": google_creds[:50] if google_creds else "NÃO CONFIGURADA",
+        "GOOGLE_CREDENTIALS_B64_configurada": google_creds_b64 is not None,
+        "GOOGLE_CREDENTIALS_B64_tamanho": len(google_creds_b64) if google_creds_b64 else 0,
+        "GOOGLE_CREDENTIALS_configurada": google_creds is not None,
+        "GOOGLE_CREDENTIALS_tamanho": len(google_creds) if google_creds else 0,
         "ambiente_vars_sample": {
             "FLASK_ENV": os.environ.get('FLASK_ENV'),
             "FLASK_HOST": os.environ.get('FLASK_HOST'),
@@ -270,17 +275,27 @@ def debug():
         }
     }
 
-    # Tentar parsear JSON se existir
-    if google_creds:
+    # Tentar decodificar Base64 se existir
+    if google_creds_b64:
         try:
-            creds_test = google_creds.replace('\\n', '\n')
-            creds_dict = json.loads(creds_test)
-            debug_info["json_valido"] = True
+            google_creds_json = base64.b64decode(google_creds_b64).decode('utf-8')
+            creds_dict = json.loads(google_creds_json)
+            debug_info["GOOGLE_CREDENTIALS_B64_decodificado"] = True
             debug_info["project_id"] = creds_dict.get('project_id')
             debug_info["client_email"] = creds_dict.get('client_email')
         except Exception as e:
-            debug_info["json_valido"] = False
-            debug_info["erro_parse"] = str(e)
+            debug_info["GOOGLE_CREDENTIALS_B64_erro"] = str(e)
+
+    # Tentar parsear JSON simples se existir
+    if google_creds and not google_creds_json:
+        try:
+            creds_test = google_creds.replace('\\n', '\n')
+            creds_dict = json.loads(creds_test)
+            debug_info["GOOGLE_CREDENTIALS_json_valido"] = True
+            debug_info["project_id"] = creds_dict.get('project_id')
+            debug_info["client_email"] = creds_dict.get('client_email')
+        except Exception as e:
+            debug_info["GOOGLE_CREDENTIALS_erro_parse"] = str(e)
 
     return jsonify(debug_info), 200
 
