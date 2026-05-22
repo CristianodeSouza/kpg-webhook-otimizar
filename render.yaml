@@ -3,7 +3,7 @@ services:
     name: kpg-webhook-otimizar
     env: python
     plan: free
-    buildCommand: "pip install -r requirements.txt"
+    buildCommand: "pip install -r requirements.txt && echo 'Build v2.1 - GCS Support'"
     startCommand: "gunicorn webhook_otimizar_imagem:app"
     envVars:
       - key: FLASK_ENV
