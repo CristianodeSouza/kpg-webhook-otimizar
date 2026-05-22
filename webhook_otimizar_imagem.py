@@ -152,23 +152,31 @@ def gerar_url_imagem_otimizada(caminho_local, id_imovel):
     """
 
     try:
-        import base64
+        # Tentar ler de Secret File primeiro (Render)
+        creds_file = '/etc/secrets/credentials.json'
+        if os.path.exists(creds_file):
+            print(f"    [DEBUG] Lendo credenciais de {creds_file}")
+            with open(creds_file, 'r') as f:
+                google_creds_json = f.read()
+            print(f"    [DEBUG] Arquivo lido com sucesso, tamanho: {len(google_creds_json)} caracteres")
+        else:
+            # Fallback: tentar variável de ambiente
+            print(f"    [DEBUG] Arquivo {creds_file} não encontrado, tentando variável de ambiente")
+            import base64
+            google_creds_b64 = os.environ.get('GOOGLE_CREDENTIALS')
+            if not google_creds_b64:
+                print(f"    [ERRO] GOOGLE_CREDENTIALS não está configurada e arquivo não existe!")
+                return f"file:///{caminho_local.replace(chr(92), '/')}"
 
-        # Ler credenciais do ambiente
-        google_creds_b64 = os.environ.get('GOOGLE_CREDENTIALS')
-        if not google_creds_b64:
-            print(f"    [ERRO] GOOGLE_CREDENTIALS não está configurada no ambiente!")
-            return f"file:///{caminho_local.replace(chr(92), '/')}"
+            print(f"    [DEBUG] GOOGLE_CREDENTIALS encontrada (base64), tamanho: {len(google_creds_b64)} caracteres")
 
-        print(f"    [DEBUG] GOOGLE_CREDENTIALS encontrada (base64), tamanho: {len(google_creds_b64)} caracteres")
-
-        try:
-            # Decodificar de base64
-            google_creds_json = base64.b64decode(google_creds_b64).decode('utf-8')
-            print(f"    [DEBUG] Base64 decodificado com sucesso, tamanho: {len(google_creds_json)} caracteres")
-        except Exception as e:
-            print(f"    [AVISO] Falha ao decodificar base64, tentando JSON direto: {e}")
-            google_creds_json = google_creds_b64.replace('\\n', '\n')
+            try:
+                # Decodificar de base64
+                google_creds_json = base64.b64decode(google_creds_b64).decode('utf-8')
+                print(f"    [DEBUG] Base64 decodificado com sucesso, tamanho: {len(google_creds_json)} caracteres")
+            except Exception as e:
+                print(f"    [AVISO] Falha ao decodificar base64, tentando JSON direto: {e}")
+                google_creds_json = google_creds_b64.replace('\\n', '\n')
 
         try:
             creds_dict = json.loads(google_creds_json)
