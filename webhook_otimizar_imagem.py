@@ -13,8 +13,12 @@ from datetime import datetime
 import tempfile
 from google.oauth2 import service_account
 from google.cloud import storage
+from dotenv import load_dotenv
 
 sys.stdout.reconfigure(encoding='utf-8')
+
+# Carregar variáveis do .env (Render coloca em /etc/secrets/.env)
+load_dotenv('/etc/secrets/.env')
 
 app = Flask(__name__)
 
